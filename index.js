@@ -1,5 +1,6 @@
 'use strict';
 
+var Promise = require('native-or-bluebird');
 var es = require('elasticsearch');
 var merge = require('node-helper-utilities').merge;
 
@@ -31,29 +32,20 @@ Driver.prototype.createIndices = function createIndex(model, data, callback) {
 };
 
 Driver.prototype.create = function create(model, callback) {
-  process.nextTick(function() {
-    callback(null, {});
-  });
+  return Promise.resolve().nodeify(callback);
 };
 
 Driver.prototype.get = function get(model, key, callback) {
-  return this.client.get(
-    {
-      index: this.index,
-      type: model.bucket,
-      id: key
-    },
+  var spec = {
+    index: this.index,
+    type: model.bucket,
+    id: key
+  };
+  return this.client.get(spec).then(function(result) {
+    result._source[model.schema.primaryKey] = result._id;
 
-    function(err, result) {
-      if(err) {
-        callback(err);
-      } else {
-        result._source[model.schema.primaryKey] = result._id;
-
-        callback(null, result._source);
-      }
-    }
-  );
+    return Promise.resolve(result._source);
+  }).nodeify(callback);
 };
 
 Driver.prototype.post = function post(document, data, callback) {
@@ -70,82 +62,66 @@ Driver.prototype.post = function post(document, data, callback) {
     payload.id = document.primaryKey;
   }
 
-  this.client.index(
-    payload,
+  return this.client.index(payload).then(function(result) {
+    document.primaryKey = result._id;
 
-    function(err, result) {
-      if (err) {
-        callback(err);
-        return;
-      }
-
-      document.primaryKey = result._id;
-      callback(null);
-    }
-  );
+    return Promise.resolve();
+  }).nodeify(callback);
 };
 
 Driver.prototype.put = function put(document, set, unset, callback) {
-  var self = this;
+  if(!(document.model.schema.primaryKey && document.primaryKey)) {
+    return Promise.reject(new Error('You cannot put a document without a primary key')).nodeify(callback);
+  }
 
-  process.nextTick(function() {
-    if (!document.model.schema.primaryKey || !document.primaryKey) {
-      throw new Error('You cannot put a document without a primary key');
-    }
+  if(!document.__originalData__[document.model.schema.primaryKey]) {
+    return this.post(document, data).nodeify(callback);
+  }
 
-    if (document.__originalData__[document.model.schema.primaryKey] === undefined) {
-      return self.post(document, data, callback);
-    }
+  var diff = {};
+  Object.keys(set).forEach(function(k) {
 
-    var diff = {};
-    Object.keys(set).forEach(function(k) {
-
-      diff[k] = set[k];
-    });
-
-    Object.keys(unset).forEach(function(k) {
-      diff[k] = null;
-    });
-
-    var primaryKey;
-
-    if (diff[document.schema.primaryKey]) {
-      primaryKey = document.__originalData__[document.schema.primaryKey];
-    } else {
-      primaryKey = document.primaryKey;
-    }
-
-    var payload = {
-      index: self.index,
-      type: document.model.bucket,
-      consistency: 'quorum',
-      refresh: true,
-      body: {
-        doc: diff
-      },
-      id: primaryKey
-    };
-
-    self.client.update(payload, callback);
+    diff[k] = set[k];
   });
+
+  Object.keys(unset).forEach(function(k) {
+    diff[k] = null;
+  });
+
+  var primaryKey;
+
+  if (diff[document.schema.primaryKey]) {
+    primaryKey = document.__originalData__[document.schema.primaryKey];
+  } else {
+    primaryKey = document.primaryKey;
+  }
+
+  var payload = {
+    index: this.index,
+    type: document.model.bucket,
+    consistency: 'quorum',
+    refresh: true,
+    body: {
+      doc: diff
+    },
+    id: primaryKey
+  };
+
+  return this.client.update(payload);
 };
 
 Driver.prototype.del = function deleteRecord(model, key, callback) {
   if (key.constructor.name === 'Object') {
     key = key[Object.keys(key)[0]];
   }
+  var spec ={
+    index: this.index,
+    type: model.bucket,
+    id: key,
+    refresh: true
+  };
 
-  return this.client.delete(
-    {
-      index: this.index,
-      type: model.bucket,
-      id: key,
-      refresh: true
-    },
-    function(err) {
-      callback(err);
-    }
-  );
+  return this.client.delete(spec);
 };
 
 Driver.prototype.findOne = function findOne(model, spec, callback) {
