@@ -133,12 +133,7 @@ Driver.prototype.findOne = function findOne(model, spec, callback) {
     body: body
   };
 
-  return this.client.search(query, function(err, result) {
-    if (err) {
-      callback(err);
-      return;
-    }
-
+  return this.client.search(query).then(function(result) {
     var records = result.hits.hits;
 
     records = records.map(function(record) {
@@ -148,21 +143,17 @@ Driver.prototype.findOne = function findOne(model, spec, callback) {
     });
 
     if (records.length) {
-      callback(null, records[0]);
+      return Promise.resolve(records[0]);
     } else {
-      callback(null, null);
+      return Promise.resolve();
     }
-  });
+  }).nodeify(callback);
 };
 
 Driver.prototype.count = function count(model, spec, callback) {
-  return this.find(model, spec, function(err, records) {
-    if(err) {
-      callback(err);
-    } else {
-      callback(null, records.length);
-    }
-  });
+  return this.find(model, spec).then(function(records) {
+    return Promise.resolve(records.length);
+  }).nodeify(callback);
 };
 
 Driver.prototype.find = function find(model, spec, callback) {
@@ -176,12 +167,7 @@ Driver.prototype.find = function find(model, spec, callback) {
     body: body
   };
 
-  return this.client.search(query, function(err, result) {
-    if (err) {
-      callback(err, []);
-      return;
-    }
-
+  return this.client.search(query).then(function(result) {
     var records = result.hits.hits;
 
     records = records.map(function(record) {
@@ -190,7 +176,7 @@ Driver.prototype.find = function find(model, spec, callback) {
       return record._source;
     });
 
-    callback(null, records);
+    return Promise.resolve(records);
   });
 };
 
@@ -206,28 +192,21 @@ Driver.prototype.findLimit = function findLimit(model, spec, start, limit, callb
     body: body
   };
 
-  return this.client.search(query, function(err, result) {
-    if (err) {
-      callback(err, []);
-    } else {
-      var records = result.hits.hits;
+  return this.client.search(query).then(function(err, result) {
+    var records = result.hits.hits;
 
-      records = records.map(function(record) {
-        record._source[model.schema.primaryKey] = record._id;
+    records = records.map(function(record) {
+      record._source[model.schema.primaryKey] = record._id;
 
-        return record._source;
-      });
+      return record._source;
+    });
 
-      callback(
-        null,
-        {
-          docs: records,
-          count: result.hits.total,
-          start: start,
-          limit: limit
-        }
-      );
-    }
+    return Promise.resolve({
+      docs: records,
+      count: result.hits.total,
+      start: start,
+      limit: limit
+    });
   });
 };
 
