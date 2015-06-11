@@ -32,7 +32,7 @@ Driver.prototype.createIndices = function createIndex(model, data, callback) {
 };
 
 Driver.prototype.create = function create(model, callback) {
-  return Promise.resolve().nodeify(callback);
+  return Promise.resolve({}).nodeify(callback);
 };
 
 Driver.prototype.get = function get(model, key, callback) {
