@@ -1,0 +1,21 @@
+{
+  "name": "osmos-contrib-elasticsearch",
+  "version": "1.0.0",
+  "description": "Osmos Driver for ElasticSearch",
+  "main": "index.js",
+  "scripts": {
+    "test": "make test"
+  },
+  "keywords": [
+    "ElasticSearch",
+    "Osmos",
+    "ODM"
+  ],
+  "author": "Limian Wang <limian.wang@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "bluebird": "^2.9.27",
+    "elasticsearch": "^5.0.0",
+    "native-or-bluebird": "^1.2.0"
+  }
+}
