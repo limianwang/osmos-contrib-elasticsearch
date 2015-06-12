@@ -26,9 +26,7 @@ Driver.prototype.createIndices = function createIndex(model, data, callback) {
     index: this.index
   });
 
-  return this.client.indices.create(indices, function(err) {
-    callback(err);
-  });
+  return this.client.indices.create(indices).nodeify(callback);
 };
 
 Driver.prototype.create = function create(model, callback) {
