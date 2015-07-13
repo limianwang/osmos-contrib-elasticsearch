@@ -14,7 +14,7 @@
   "author": "Limian Wang <limian.wang@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "bluebird": "^2.9.27",
+    "bluebird": "^2.9.33",
     "elasticsearch": "^5.0.0",
     "native-or-bluebird": "^1.2.0",
     "node-helper-utilities": "^1.7.5"
